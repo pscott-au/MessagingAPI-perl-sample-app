@@ -1,5 +1,6 @@
 # Getting started
 
+[![Build Status](https://travis-ci.org/pscott-au/WebService-GoogleAPI-Client.svg?branch=master)](https://travis-ci.org/pscott-au/MessagingAPI-perl-sample-app)
 
 The Telstra SMS Messaging API allows your applications to send and receive SMS text messages from Australia's leading network operator.
 
