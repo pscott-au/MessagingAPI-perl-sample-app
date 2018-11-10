@@ -5,7 +5,15 @@ The Telstra SMS Messaging API allows your applications to send and receive SMS t
 
 It also allows your application to track the delivery status of both sent and received SMS messages.
 
-## Configuration
+## Forked From Telstra Repo
+
+This is a forked version from the demo code published by Telstra.
+
+It has been augmented with the CPAN Module code contained beneath WebService-Telstra-Messaging which is a dzil build for the CPAN module.
+
+
+
+## Original Telstra Demo Code Configuration
 
 Edit functions.pm and fill out:
 ```
