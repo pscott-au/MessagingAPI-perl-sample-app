@@ -5,7 +5,6 @@ matrix:
   include:
     - perl: 5.28
       env: COVERAGE=1
-before_script: 
-  - cd WebService-TelstraAPI-Messaging
 before_install:
+  - cd WebService-TelstraAPI-Messaging
   - eval $(curl https://travis-perl.github.io/init) --auto
