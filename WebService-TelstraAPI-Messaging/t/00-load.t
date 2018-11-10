@@ -4,8 +4,6 @@ use strict;
 use warnings;
 use Test::More;
 
-# plan tests => 4; # instead of noplan using  done_testing;
-
 BEGIN {
     use_ok( 'WebService::TelstraAPI::Messaging' ) || print "Bail out!\n";
 
