@@ -6,37 +6,27 @@ use Mojo::UserAgent;
 use Storable;
 use Data::Dump qw/pp/;
 use Carp;
+use JSON;
 # ABSTRACT: Telstra SMS Messaging API allows your applications to send and receive SMS text messages
-
-has ua => sub {
-  my $ua = Mojo::UserAgent->new(inactivity_timeout => 600);
-  $ua->on(
-    start => sub {
-      my ($ua, $tx) = @_;
-      $tx->res->max_message_size(2147483648);
-
-      # Work around misconfigured IBS reverse proxy servers that send
-      # "Content-Encoding: gzip" without being asked to
-      #$tx->req->headers->add('Authorization' => 'Bearer ' . $self->access_token );
-      #$tx->res->content->auto_decompress(0);
-    }
-  );
-  return $ua;
-};
-
-#has storable => sub {
-    #retrieve(dirname($0) . "/tokenstore.bin")
-#    my ( $self ) = @_;
-    #warn pp $self;
-    #print qq{hre we are \n};
-#};
 
 has   token => '';
 has   token_expires => 0;
 has   client_id => '';
 has   client_secret => '';
 has debug => 0;
-#has access_token =>  'default-access-token'; 
+
+has ua => sub {
+  my $ua = Mojo::UserAgent->new(inactivity_timeout => 600);
+  $ua->on(
+    start => sub {
+      my ($ua, $tx) = @_;
+      ## how to insert auth headers here ?
+    }
+  );
+  return $ua;
+};
+
+
 
 
 
@@ -77,16 +67,58 @@ sub build_authenticated_tx
 }
 
 
-
 sub get_subscription
 {
     my ( $self, $config ) = @_;
     $self->validate_token();
     my $tx = $self->build_authenticated_tx( 'GET' => 'https://tapi.telstra.com/v2/messages/provisioning/subscriptions' );
-    #$tx->req->headers->header( 'Content-Type' => 'application/json' );
-    #$tx->req->headers->header( 'Authorization' => 'Bearer ' . $self->token );
     my $res = $self->ua->start(  $tx )->res;
     return $res->json;
+}
+
+=head2 C<send_sms>
+
+    send_sms( { n=>'+61410580546', m=>'hello peter'} )
+
+=cut
+
+
+sub send_sms
+{
+    my ( $self, %options ) = @_;
+
+    ## If a number isn't provided with -n, prompt for destination number.
+    if ( ! $options{n} ) {
+        print "Enter destination number in format +61......: ";
+        $options{n} = <STDIN>;
+        chomp($options{n});
+    }
+    if ( $options{n} eq "" ) { exit 1; }
+
+    ## If a message isn't provided with -m, prompt for a message.
+    if ( ! $options{m} ) {
+        print "Enter message to send: ";
+        $options{m} = <STDIN>;
+        chomp($options{m});
+    }
+    if ( $options{m} eq "" ) { exit 1; }
+
+    my %body = (
+        'to'	=> $options{n},
+        'body'	=> $options{m},
+    );
+
+    ## Get an OAuth token if required.
+    $self->validate_token();
+
+   my $payload = to_json( {        'to'	=> $options{n},
+        'body'	=> $options{m},} );
+
+    my $tx = $self->build_authenticated_tx( 'POST' => 'https://tapi.telstra.com/v2/messages/sms' =>  $payload );
+
+    my $res = $self->ua->start(  $tx )->res;
+    return $res->json;
+
 }
 
 =head2 LICENSE
