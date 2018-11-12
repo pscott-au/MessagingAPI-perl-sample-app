@@ -25,9 +25,10 @@ has ua => sub  { my ($self) = @_;
 sub inject_auth_header  
 { 
     my ($self, $ua, $tx) = @_; 
-    $tx->req->headers->header( 'Content-Type'  => 'application/json' );
+    
     if (  $self->token =~ /\w+/mx) 
     {
+        $tx->req->headers->header( 'Content-Type'  => 'application/json' );
         $tx->req->headers->header( 'Authorization' => 'Bearer ' . $self->token ) 
     }
     return $tx;
@@ -50,20 +51,21 @@ sub validate_token
     {
         carp( "refreshing token") if $self->debug;
         $self->token(''); ## empty out stale token
-        my $tx = $self->ua->build_tx( 'POST' => 'https://sapi.telstra.com/v1/oauth/token', => {Accept => '*/*', 'Content-Type'  => 'application/json'} => form => {
+        my $tx = $self->ua->build_tx( 'POST' => 'https://sapi.telstra.com/v1/oauth/token', => {Accept => '*/*' } =>  form => {
             'grant_type'	=> 'client_credentials',
             'scope'		=> 'NSMS',
             'client_id'	=> $self->client_id,
             'client_secret'	=> $self->client_secret,
          } );
-         pp $tx;
-         #exit;
-         my $res = $self->ua->start( $tx )->res->json;
-         pp $res;
-         croak("token renewal request response did not contain token and expires_in") unless defined $res->{access_token};
-         croak("token renewal request response did not contain expires_in") unless defined $res->{expires_in};
-         $self->token( $res->{access_token} );
-         $self->token_expires( $res->{expires_in} + time() - 60 );
+         #pp $tx;
+#         exit;
+         my $res = $self->ua->start( $tx )->res;
+         #pp $res;
+         my $res_json = $res->json;
+         croak("token renewal request response did not contain token and expires_in") unless defined $res_json->{access_token};
+         croak("token renewal request response did not contain expires_in") unless defined $res_json->{expires_in};
+         $self->token( $res_json->{access_token} );
+         $self->token_expires( $res_json->{expires_in} + time() - 60 );
          return;
     }
 }
