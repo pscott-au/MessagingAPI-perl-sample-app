@@ -7,32 +7,41 @@ use Storable;
 use Data::Dump qw/pp/;
 use Carp;
 use JSON;
+use curry;
 # ABSTRACT: Telstra SMS Messaging API allows your applications to send and receive SMS text messages
 
-has   token => '';
+has   token         => '';
 has   token_expires => 0;
-has   client_id => '';
+has   client_id     => '';
 has   client_secret => '';
-has debug => 0;
+has   debug => 0;
 
-has ua => sub {
-  my $ua = Mojo::UserAgent->new(inactivity_timeout => 600);
-  $ua->on(
-    start => sub {
-      my ($ua, $tx) = @_;
-      ## how to insert auth headers here ?
+
+
+has ua => sub  { my ($self) = @_; 
+                 Mojo::UserAgent->new->tap(on => start => $self->curry::weak::inject_auth_header) ;
+            };
+
+sub inject_auth_header  
+{ 
+    my ($self, $ua, $tx) = @_; 
+    $tx->req->headers->header( 'Content-Type'  => 'application/json' );
+    if (  $self->token =~ /\w+/mx) 
+    {
+        $tx->req->headers->header( 'Authorization' => 'Bearer ' . $self->token ) 
     }
-  );
-  return $ua;
-};
-
-
-
+    return $tx;
+}
 
 
 sub validate_token 
 {
     my ( $self ) = @_;
+    
+    
+    ## TODO: need some better checking here - esp. to get initial token
+    my $t = $self->token() ;
+    $self->token('') unless defined $t;
 	if ( $self->token and $self->token_expires > time() ) {
 		carp "Oauth token present and valid... Using existing token - expires in " . ( $self->token_expires - time() ) . ' seconds  ' if $self->debug;
 		return;
@@ -40,13 +49,19 @@ sub validate_token
     else 
     {
         carp( "refreshing token") if $self->debug;
-        my $tx = $self->ua->build_tx( 'POST' => 'https://sapi.telstra.com/v1/oauth/token', => {Accept => '*/*'} => form => {
+        $self->token(''); ## empty out stale token
+        my $tx = $self->ua->build_tx( 'POST' => 'https://sapi.telstra.com/v1/oauth/token', => {Accept => '*/*', 'Content-Type'  => 'application/json'} => form => {
             'grant_type'	=> 'client_credentials',
             'scope'		=> 'NSMS',
             'client_id'	=> $self->client_id,
             'client_secret'	=> $self->client_secret,
          } );
+         pp $tx;
+         #exit;
          my $res = $self->ua->start( $tx )->res->json;
+         pp $res;
+         croak("token renewal request response did not contain token and expires_in") unless defined $res->{access_token};
+         croak("token renewal request response did not contain expires_in") unless defined $res->{expires_in};
          $self->token( $res->{access_token} );
          $self->token_expires( $res->{expires_in} + time() - 60 );
          return;
@@ -55,30 +70,19 @@ sub validate_token
 
 
 
-
-sub build_authenticated_tx 
-{
-    my ( $self, @params ) = @_;
-
-    my $tx = $self->ua->build_tx( @params );
-    $tx->req->headers->header( 'Content-Type'  => 'application/json' );
-    $tx->req->headers->header( 'Authorization' => 'Bearer ' . $self->token );
-    return $tx;
-}
-
-
 sub get_subscription
 {
     my ( $self, $config ) = @_;
     $self->validate_token();
-    my $tx = $self->build_authenticated_tx( 'GET' => 'https://tapi.telstra.com/v2/messages/provisioning/subscriptions' );
+    # my $tx = $self->build_authenticated_tx( 'GET' => 'https://tapi.telstra.com/v2/messages/provisioning/subscriptions' );
+    my $tx = $self->ua->build_tx( 'GET' => 'https://tapi.telstra.com/v2/messages/provisioning/subscriptions'  );
     my $res = $self->ua->start(  $tx )->res;
     return $res->json;
 }
 
 =head2 C<send_sms>
 
-    send_sms( { n=>'+61410580546', m=>'hello peter'} )
+    $agent->send_sms(  n=>'+61410580546', m=>'hello peter' )
 
 =cut
 
@@ -86,7 +90,7 @@ sub get_subscription
 sub send_sms
 {
     my ( $self, %options ) = @_;
-
+    $self->validate_token();
     ## If a number isn't provided with -n, prompt for destination number.
     if ( ! $options{n} ) {
         print "Enter destination number in format +61......: ";
@@ -114,7 +118,8 @@ sub send_sms
    my $payload = to_json( {        'to'	=> $options{n},
         'body'	=> $options{m},} );
 
-    my $tx = $self->build_authenticated_tx( 'POST' => 'https://tapi.telstra.com/v2/messages/sms' =>  $payload );
+    #my $tx = $self->build_authenticated_tx( 'POST' => 'https://tapi.telstra.com/v2/messages/sms' =>  $payload );
+    my $tx = $self->ua->build_tx( 'POST' => 'https://tapi.telstra.com/v2/messages/sms' =>  $payload );
 
     my $res = $self->ua->start(  $tx )->res;
     return $res->json;
