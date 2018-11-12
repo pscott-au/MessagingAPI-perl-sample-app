@@ -22,7 +22,12 @@ my $consumer_key = "";
 my $consumer_secret = "";
 ```
 
-See the documentation at [Dev.Telstra.com](https://dev.telstra.com/content/messaging-api) for more information
+
+## See Also
+
+* Documentation at [Dev.Telstra.com](https://dev.telstra.com/content/messaging-api) for more information
+
+* [Telstra Open-API YAML](https://github.com/telstra/MessagingAPI-v2/blob/master/docs/swagger/messaging-api-swagger.yaml)
 
 ## LICENSE
 
